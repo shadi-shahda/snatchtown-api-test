@@ -1,0 +1,23 @@
+{
+  "name": "luckycrush-api-test",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
+    "jest": "^30.2.0",
+    "jest-environment-node": "^30.2.0"
+  },
+  "dependencies": {
+    "qs": "^6.14.0"
+  }
+}
