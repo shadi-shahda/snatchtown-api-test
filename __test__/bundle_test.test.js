@@ -7,7 +7,17 @@ describe('bundle api test', () => {
   const patch_bundle_end_point = '/api/Bundle/UpdateBundle';
   const delete_bundle_end_point = '/api/Bundle/DeleteBundle';
   const soft_delete_end_point = '/api/Bundle/SoftDeleteBundle';
+  const player_profile_end_point = '/api/User/GetPlayerProfile';
+  const register_end_point = '/api/Auth/Register';
 
+  const registerData = {
+    "displayName": "shadi",
+    "googleId": "string",
+    "playerDeviceId": "string",
+    "isGoogleAuthenticated": true,
+    "profileImage": "",
+    "deviceToken": "string"
+  };
 
   const requiredFields = ['id', 'title', 'subtitle', 'price', 'isActive', 'startDate', 'endDate', 'products'];
 
@@ -39,7 +49,7 @@ describe('bundle api test', () => {
         "amount": 10
       },
       {
-        "productId": 30,
+        "productId": 31,
         "amount": 10
       }
     ]
@@ -239,5 +249,22 @@ describe('bundle api test', () => {
   it('try to delete bundle soft delete with invalid id', async () => {
     const softDeleteResponse = await api.post(`${soft_delete_end_point}/999`);
     expect([400, 404]).toContain(softDeleteResponse.status);
+  });
+
+  it.only("try to purchase bundle", async () => {
+    const createBundleResponse = await api.post(create_bundle_end_point, create_bundle_data);
+    expect(createBundleResponse.status).toBe(200);
+    const bundleId = createBundleResponse.data.data.id;
+    
+    const registerReponse = await api.post(register_end_point, registerData);
+    expect(registerReponse.status).toBe(200);
+    const accessToken = registerReponse.data.data.accessToken;
+    const registeredApi = new ApiHandler({ authToken: accessToken });
+    
+    const playerProfile = await registeredApi.get(player_profile_end_point);
+
+      const purchaseResponse = await registeredApi.post(`/api/Bundle/PurchaseBundle/${bundleId}`);
+      expect(purchaseResponse.status).toBe(200);
+
   });
 });
