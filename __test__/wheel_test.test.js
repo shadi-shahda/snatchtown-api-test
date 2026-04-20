@@ -21,10 +21,17 @@ function generateWheelData(keyToSkip = null) {
   const wheelData = {
     "startTime": startDate.toISOString(),
     "endTime": endDate.toISOString(),
-    "isActive": true,
-    "type": 1,
-    "price": 1,
-    "currency": 1
+    "isActive": false,
+    "type": 2,
+    "price": 0,
+    "currency": 0,
+    "prizes": [
+      {
+        "typeId": 2,
+        "amount": 1,
+        "weight": 1
+      }
+    ]
   };
 
   if (keyToSkip) {
@@ -39,13 +46,26 @@ const createRequiredFields = [
   "isActive",
   "type",
   "price",
-  "currency"
+  "currency",
+  "prizes"
 ];
 
 const negativeableData = [
   "type",
   "price",
   "currency"
+];
+
+const prizeRequiredFields = [
+  "typeId",
+  "amount",
+  "weight"
+];
+
+const prizeNegativeableData = [
+  "typeId",
+  "amount",
+  "weight"
 ];
 
 describe("Wheel API Test", () => {
@@ -64,10 +84,21 @@ describe("Wheel API Test", () => {
     expect(response.data.data).toHaveProperty("id");
 
     // Verify Data Types (JSON preserves types)
-    expect(response.data.data.isActive).toBe(true);
+    expect(response.data.data.isActive).toBe(data.isActive);
     expect(response.data.data.type).toBe(data.type);
     expect(response.data.data.price).toBe(data.price);
     expect(response.data.data.currency).toBe(data.currency);
+    expect(Array.isArray(response.data.data.prizes)).toBe(true);
+
+    if (response.data.data.prizes.length > 0) {
+      const firstPrize = response.data.data.prizes[0];
+      expect(firstPrize).toHaveProperty("type");
+      expect(firstPrize).toHaveProperty("amount");
+      expect(firstPrize).toHaveProperty("weight");
+    }
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${response.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
   });
 
   createRequiredFields.forEach(field => {
@@ -96,6 +127,34 @@ describe("Wheel API Test", () => {
     data.startTime = "Invalid-Date-String";
     const response = await api.post(create_wheel_end_point, data);
     expect(response.status).toBe(400);
+  });
+
+  it("should fail to create wheel with empty prizes", async () => {
+    const data = generateWheelData();
+    data.prizes = [];
+
+    const response = await api.post(create_wheel_end_point, data);
+    expect([400, 404]).toContain(response.status);
+  });
+
+  prizeRequiredFields.forEach(field => {
+    it(`should fail to create wheel when prize is missing ${field}`, async () => {
+      const data = generateWheelData();
+      delete data.prizes[0][field];
+
+      const response = await api.post(create_wheel_end_point, data);
+      expect([400, 404]).toContain(response.status);
+    });
+  });
+
+  prizeNegativeableData.forEach(field => {
+    it(`should fail to create wheel when prize has negative ${field}`, async () => {
+      const data = generateWheelData();
+      data.prizes[0][field] = -1;
+
+      const response = await api.post(create_wheel_end_point, data);
+      expect([400, 404]).toContain(response.status);
+    });
   });
 
   negativeableData.forEach(field => {
@@ -130,7 +189,8 @@ describe("Wheel API Test", () => {
       isActive: data.isActive,
       type: data.type,
       price: data.price,
-      currency: data.currency
+      currency: data.currency,
+      prizes: data.prizes
     };
 
     // 3. Patch
@@ -141,6 +201,9 @@ describe("Wheel API Test", () => {
     const fetchWheels = await api.get(get_all_wheels_end_point);
     const updatedWheel = fetchWheels.data.data.find(w => w.id === wheelId);
     // expect(new Date(updatedWheel.startTime).toISOString()).toBe(updateData.startTime);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
   });
 
   it("should fail to update start date to be later than end date", async () => {
@@ -155,11 +218,19 @@ describe("Wheel API Test", () => {
     const updateData = {
       wheelId: wheelId,
       startTime: invalidStart.toISOString(),
-      endTime: data.endTime
+      endTime: data.endTime,
+      isActive: data.isActive,
+      type: data.type,
+      price: data.price,
+      currency: data.currency,
+      prizes: data.prizes
     };
 
     const response = await api.patch(`${update_wheel_end_point}/${wheelId}`, updateData);
     expect(response.status).toBe(400);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
   });
 
   it("should fail to update end date to be sooner than start date", async () => {
@@ -177,6 +248,9 @@ describe("Wheel API Test", () => {
 
     const response = await api.patch(`${update_wheel_end_point}/${wheelId}`, updateData);
     expect(response.status).toBe(400);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
   });
 
   it("should update wheel isActive status", async () => {
@@ -186,14 +260,17 @@ describe("Wheel API Test", () => {
 
     const updateData = generateWheelData("isActive");
     updateData.wheelId = wheelId;
-    updateData.isActive = false;
+    updateData.isActive = !data.isActive;
 
     const response = await api.patch(`${update_wheel_end_point}/${wheelId}`, updateData);
     expect(response.status).toBe(200);
 
     const fetchWheels = await api.get(get_all_wheels_end_point);
     const updatedWheel = fetchWheels.data.data.find(w => w.id === wheelId);
-    expect(updatedWheel.isActive).toBe(false);
+    expect(updatedWheel.isActive).toBe(updateData.isActive);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
   });
 
   it("should update wheel type, price, and currency", async () => {
@@ -216,6 +293,53 @@ describe("Wheel API Test", () => {
     expect(updatedWheel.type).toBe(2);
     expect(updatedWheel.price).toBe(500);
     expect(updatedWheel.currency).toBe(2);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
+  });
+
+  it("should update wheel prizes", async () => {
+    const data = generateWheelData();
+    const createResponse = await api.post(create_wheel_end_point, data);
+    const wheelId = createResponse.data.data.id;
+
+    const updateData = generateWheelData();
+    updateData.wheelId = wheelId;
+    updateData.prizes = [
+      {
+        typeId: 1,
+        amount: 99,
+        weight: 40
+      }
+    ];
+
+    const response = await api.patch(`${update_wheel_end_point}/${wheelId}`, updateData);
+    expect(response.status).toBe(200);
+
+    const fetchResponse = await api.get(`${get_wheel_by_id_end_point}/${wheelId}`);
+    expect(fetchResponse.status).toBe(200);
+    expect(Array.isArray(fetchResponse.data.data.prizes)).toBe(true);
+    expect(fetchResponse.data.data.prizes[0].amount).toBe(99);
+    expect(fetchResponse.data.data.prizes[0].weight).toBe(40);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
+  });
+
+  it("should fail to update wheel with empty prizes", async () => {
+    const data = generateWheelData();
+    const createResponse = await api.post(create_wheel_end_point, data);
+    const wheelId = createResponse.data.data.id;
+
+    const updateData = generateWheelData();
+    updateData.wheelId = wheelId;
+    updateData.prizes = [];
+
+    const response = await api.patch(`${update_wheel_end_point}/${wheelId}`, updateData);
+    expect([400, 404]).toContain(response.status);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
   });
 
   negativeableData.forEach(field => {
@@ -230,6 +354,9 @@ describe("Wheel API Test", () => {
 
       const response = await api.patch(`${update_wheel_end_point}/${wheelId}`, updateData);
       expect(response.status).toBe(400);
+
+      const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+      expect(deleteResponse.status).toBe(200);
 
     });
   });
@@ -253,6 +380,13 @@ describe("Wheel API Test", () => {
       expect(wheel).toHaveProperty('price');
       expect(wheel).toHaveProperty('currency');
       expect(wheel).toHaveProperty('prizes');
+
+      if (Array.isArray(wheel.prizes) && wheel.prizes.length > 0) {
+        const prize = wheel.prizes[0];
+        expect(prize).toHaveProperty('type');
+        expect(prize).toHaveProperty('amount');
+        expect(prize).toHaveProperty('weight');
+      }
     }
   });
 
@@ -267,6 +401,10 @@ describe("Wheel API Test", () => {
     expect(response.data.isSuccess).toBe(true);
     expect(response.data.data.id).toBe(wheelId);
     expect(response.data.data.price).toBe(data.price);
+    expect(Array.isArray(response.data.data.prizes)).toBe(true);
+
+    const deleteResponse = await api.delete(`${delete_wheel_end_point}/${createResponse.data.data.id}`);
+    expect(deleteResponse.status).toBe(200);
   });
 
   it("should delete wheel by its Id", async () => {
