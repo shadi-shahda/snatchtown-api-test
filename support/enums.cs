@@ -2,10 +2,12 @@ namespace LuckyCrush.Domain.Constants;
 
 public enum GlobalTypeCategory
 {
-    Currency,   // Coins, Diamonds
-    Booster,    // Tools, Bombs, Hearts, etc.
-    Tool,       // Special tools
-    WheelPrize  // Prizes from the wheel
+    Currency,    // Coins, Diamonds
+    Booster,     // Tools, Bombs, Hearts, etc.
+    Tool,        // Special tools
+    WheelPrize,  // Prizes from the wheel
+    WheelBundle, // Bundles in the wheel
+    ShopBundle,  // Bundles in the shop
 }
 
 public enum TaskType
